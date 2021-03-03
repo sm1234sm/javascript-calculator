@@ -7,7 +7,10 @@ const initialState = {
   lastDisplay: "",
   viewDisplay: "",
   lastInput: "",
-  signedNumber: false
+  signedNumber: false,
+  inputCount: 0,
+  calculate: false,
+  mode: null
 }
 
 const Display = (props) => {
@@ -39,35 +42,73 @@ function App() {
   const [display, setDisplay] = useState('0');
 
   useEffect(() => {
+    if (state.mode === "numberPad") {
+      numPadHandler();
+    }
+
+    if (state.mode === "operatorPad") {
+      operatorPadHandler();
+    }
+
+    return () => {
+
+    }
+  }, [state.inputCount, state.lastInput]);
+
+  useEffect(() => {
+
+    if (state.calculate) {
+      console.log("useEffect Calculate")
+      calculate();
+    }
+
+    return () => {
+
+    }
+  }, [state.calculate])
+
+  useEffect(() => {
+    setDisplay(state.viewDisplay + state.lastDisplay);
+
+    return () => {
+    }
+  }, [state.lastDisplay, state.viewDisplay])
+
+  useEffect(() => {
+    console.log("useEffect Display: ", display)
   }, [display])
 
   const resetCalculator = () => {
-    setState({
+    setState(prevState => ({
+      ...prevState,
       numbers: [],
       operators: [],
       lastDisplay: "0",
       viewDisplay: "",
       lastInput: "",
-      signedNumber: false
-    })
-    setDisplay(prevState => "0")
+      signedNumber: false,
+      calculate: false,
+      mode: null
+    }))
+    //setDisplay(prevState => "0")
     // $("#view").text("0")
   }
 
-  const resetLastInput = ({ display = "", input = "" }) => {
+  const resetLastInput = () => {
     setState(prevState => ({
       ...prevState,
-      lastDisplay: display,
-      lastInput: input,
+      lastDisplay: "",
+      lastInput: "",
+      calculate: false,
+      mode: null
     }))
 
     if (state.numbers.length <= state.operators.length) {
       setState(prevState => ({
         ...prevState,
-        operators: prevState.operators.pop(),
+        operators: prevState.operators.splice(-1, 1),
         viewDisplay: prevState.viewDisplay.slice(0, -1)
       }))
-
     }
   }
 
@@ -76,33 +117,30 @@ function App() {
     const tempNumbers = [];
     const tempOperators = [];
     let continueCalculate = true;
-    setState(prevState => ({
-      ...prevState,
-      numbers: prevState.numbers.map((number) => parseFloat(number))
-    }))
-    //console.log("Numbers", numbers);
+    const parsedNumbers = state.numbers.map((number) => parseFloat(number));
+    console.log("Numbers: ", parsedNumbers);
     for (let i = 0; i < (state.operators.length); i++) {
       switch (state.operators[i]) {
         case "*":
           continueCalculate = true;
-          temp *= state.numbers[i + 1];
-          // console.log("Case 1", temp);
+          temp *= parsedNumbers[i + 1];
+          console.log("Case 1", temp);
           break;
         case "/":
           continueCalculate = true;
-          temp /= state.numbers[i + 1];
-          // console.log("Case 2", temp);
+          temp /= parsedNumbers[i + 1];
+          console.log("Case 2", temp);
           break;
         default:
-          // console.log("Case Default", temp);
+          console.log("Case Default", temp);
           if (continueCalculate) {
             continueCalculate = false;
             tempNumbers.push(parseFloat(temp));
             tempOperators.push(state.operators[i]);
-            temp = state.numbers[i + 1];
+            temp = parsedNumbers[i + 1];
           } else {
-            temp = state.numbers[i + 1];
-            tempNumbers.push(state.numbers[i]);
+            temp = parsedNumbers[i + 1];
+            tempNumbers.push(parsedNumbers[i]);
             tempOperators.push(state.operators[i]);
           }
       }
@@ -117,43 +155,42 @@ function App() {
         return previousNumber - currentNumber;
       }
     })
-    //console.log(tempNumbers, tempOperators, result);
+    console.log(tempNumbers, tempOperators, result);
     setState(prevState => ({
       ...prevState,
       numbers: [],
       operators: [],
       lastDisplay: result.toString(),
-      viewDisplay: ""
+      viewDisplay: "",
+      calculate: false
     }))
 
-    setDisplay(prevState => state.lastDisplay);
+    //setDisplay(prevState => state.lastDisplay);
+    console.log("Last display: ", state.lastDisplay)
     //$("#view").text(lastDisplay);
   }
 
-  // const resetCalculatorHandler = () => {
-  //   switch (/*$(this).text()*/) {
-  //     case "C":
-  //       resetLastInput({});
-  //       //$("#view").text(viewDisplay === "" ? 0 : viewDisplay);
-  //       setDisplay(prevState => (state.viewDisplay === "" ? 0 : state.viewDisplay));
-  //       break;
-  //     case "AC":
-  //       resetCalculator();
-  //       break;
-  //   }
-  // }
 
-  const numPadHandler = (number) => {
+  const numPadClickHandler = (number) => {
     setState(prevState => ({
       ...prevState,
-      lastInput: number
+      lastInput: number,
+      inputCount: prevState.inputCount++,
+      mode: 'numberPad'
     }))
+  }
 
-    setDisplay(prevState=>
-      state.viewDisplay + state.lastDisplay + number
-    )
+  const operatorPadClickHandler = (operator) => {
+    setState(prevState => ({
+      ...prevState,
+      inputCount: prevState.inputCount++,
+      lastInput: operator,
+      mode: 'operatorPad'
+    }))
+  };
 
-    console.log("State: ", state)
+  const numPadHandler = () => {
+    console.log("State: ", state, "\nDisplay: ", display);
 
     if (state.lastDisplay + state.lastInput === "00") {
       return;
@@ -213,24 +250,15 @@ function App() {
         }))
       }
     }
-    setDisplay(prevState => state.viewDisplay + state.lastDisplay);
+    //setDisplay(prevState => state.viewDisplay + state.lastDisplay);
     //$("#view").text(viewDisplay + lastDisplay);
 
     console.log("Numbers", state.numbers);
     console.log("Operators", state.operators);
   }
 
-  const operatorPadHandler = (operator) => {
-    setState(prevState => ({
-      ...prevState,
-      lastInput: operator
-    }))
-
-    setDisplay(prevState=>(
-      state.viewDisplay + state.lastDisplay + operator
-    ))
-
-    console.log('State: ' + state)
+  const operatorPadHandler = () => {
+    console.log('State: ' + JSON.stringify(state))
 
     if ((state.lastDisplay === "" || state.lastDisplay === "-") && state.lastInput !== "-" && state.viewDisplay === "") {
       console.log(`(state.lastDisplay === "" || state.lastDisplay === "-") && state.lastInput !== "-" && state.viewDisplay === ""`)
@@ -253,7 +281,7 @@ function App() {
           lastDisplay: ""
         }))
       }
-      setDisplay(prevState => (state.viewDisplay + state.lastDisplay));
+      //setDisplay(prevState => (state.viewDisplay + state.lastDisplay));
       //$("#view").text(viewDisplay + lastDisplay);
       return;
     }
@@ -265,7 +293,7 @@ function App() {
         ...prevState,
         lastDisplay: "0"
       }))
-      setDisplay(prevState => (state.viewDisplay + state.lastDisplay));
+      //setDisplay(prevState => (state.viewDisplay + state.lastDisplay));
       //$("#view").text(viewDisplay + lastDisplay);
     }
 
@@ -274,10 +302,10 @@ function App() {
       if (!isNaN(state.lastDisplay)) {
         setState(prevState => ({
           ...prevState,
+          calculate: true,
           numbers: [...prevState.numbers, prevState.lastDisplay]
         }))
       }
-      calculate();
       return;
     }
 
@@ -292,7 +320,7 @@ function App() {
         signedNumber: false
       }))
 
-      setDisplay(prevState => (state.viewDisplay + state.lastDisplay));
+      //setDisplay(prevState => (state.viewDisplay + state.lastDisplay));
       //$("#view").text(viewDisplay + lastDisplay);
 
       //console.log("First ", lastInput);
@@ -304,15 +332,15 @@ function App() {
           signedNumber: true
         }))
 
-        if (!state.numbers.length) {
-          console.log(`!state.numbers.length`)
-          setDisplay(prevState => (state.viewDisplay + state.lastDisplay));
-          //$("#view").text(viewDisplay + lastDisplay);
-        } else {
-          console.log(`else`)
-          setDisplay(prevState => (state.viewDisplay + state.lastDisplay + state.lastInput));
-          //$("#view").text(viewDisplay + lastDisplay + lastInput);
-        }
+        // if (!state.numbers.length) {
+        //   console.log(`!state.numbers.length`)
+        //   setDisplay(prevState => (state.viewDisplay + state.lastDisplay));
+        //   $("#view").text(viewDisplay + lastDisplay);
+        // } else {
+        //   console.log(`else`)
+        //   setDisplay(prevState => (state.viewDisplay + state.lastDisplay + state.lastInput));
+        //   $("#view").text(viewDisplay + lastDisplay + lastInput);
+        // }
 
       } else {
         console.log(`else`)
@@ -321,15 +349,14 @@ function App() {
           signedNumber: false,
           lastDisplay: prevState.lastInput
         }))
-        setDisplay(prevState => (state.viewDisplay + state.lastDisplay));
+        //setDisplay(prevState => (state.viewDisplay + state.lastDisplay));
         //$("#view").text(viewDisplay + lastDisplay);
       }
       //console.log("Second ", $(this).text());
     }
     console.log("Numbers", state.numbers);
     console.log("Operators", state.operators);
-  };
-
+  }
   const numbers = [
     { className: "seven", input: "7" },
     { className: "eight", input: "8" }, { className: "nine", input: "9" }, { className: "four", input: "4" }, { className: "five", input: "5" }, { className: "six", input: "6" }, { className: "one", input: "1" }, { className: "two", input: "2" }, { className: "three", input: "3" }, { className: "zero", input: "0" }, { className: "decimal", input: "." }
@@ -340,18 +367,18 @@ function App() {
   ];
 
   const numberPads = numbers.map((number, index) =>
-    <button onClick={() => numPadHandler(number.input)} className={number.className} key={index}>{number.input}</button>
+    <button onClick={() => numPadClickHandler(number.input)} className={number.className} key={index}>{number.input}</button>
   );
 
   const operatorPads = operators.map((operator, index) =>
-    <button onClick={()=> operatorPadHandler(operator.input)} className={operator.className} key={index}>{operator.input}</button>
+    <button onClick={() => operatorPadClickHandler(operator.input)} className={operator.className} key={index}>{operator.input}</button>
   );
 
   return (
     <div className="App">
       <Display display={display} />
       <div id="keypad">
-        <ResetPad resetCalculatorHandler={resetCalculator} />
+        <ResetPad resetCalculatorHandler={resetCalculator} resetLastInput={resetLastInput} />
         <div id="numbers">
           {numberPads}
         </div>
